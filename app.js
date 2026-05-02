@@ -2,6 +2,7 @@ const STORE_KEY = "tiktok-signal-forge:v1";
 const MAX_EVENTS = 120;
 const MAX_DIAGNOSTICS = 160;
 const DUP_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_RELAY_URL = "";
 
 const CLOSE_HINTS = {
   1000: ["WS_CLOSED_NORMAL", "正常に切断しました。"],
@@ -46,7 +47,8 @@ const app = {
   giftStreaks: new Map(),
   settings: {
     uniqueId: "",
-    provider: "euler",
+    provider: "auto",
+    relayUrl: "",
     customUrl: "",
     authMode: "none",
     credential: "",
@@ -84,6 +86,8 @@ function bind() {
     "connectForm",
     "uniqueIdInput",
     "providerInput",
+    "relayUrlField",
+    "relayUrlInput",
     "customUrlField",
     "customUrlInput",
     "advancedDetails",
@@ -137,6 +141,7 @@ function bindEvents() {
 
   [
     $.uniqueIdInput,
+    $.relayUrlInput,
     $.customUrlInput,
     $.authModeInput,
     $.credentialInput,
@@ -180,6 +185,15 @@ function applyQueryParams() {
   const params = new URLSearchParams(location.search);
   const id = params.get("id") || params.get("u") || params.get("uniqueId") || params.get("user");
   if (id) app.settings.uniqueId = normalizeUniqueId(id);
+  const relayUrl = params.get("relay") || params.get("relayUrl");
+  if (relayUrl) {
+    app.settings.relayUrl = relayUrl.trim();
+    app.settings.provider = "relay";
+  }
+  const provider = params.get("provider");
+  if (["auto", "relay", "euler", "custom", "demo"].includes(provider)) {
+    app.settings.provider = provider;
+  }
   if (params.get("demo") === "1") {
     app.settings.provider = "demo";
     app.pendingAutostart = true;
@@ -225,6 +239,7 @@ function persist() {
 function readSettingsFromForm() {
   app.settings.uniqueId = normalizeUniqueId($.uniqueIdInput.value);
   app.settings.provider = $.providerInput.value;
+  app.settings.relayUrl = $.relayUrlInput.value.trim();
   app.settings.customUrl = $.customUrlInput.value.trim();
   app.settings.authMode = $.authModeInput.value;
   app.settings.credential = $.credentialInput.value.trim();
@@ -234,6 +249,7 @@ function readSettingsFromForm() {
 function writeSettingsToForm() {
   $.uniqueIdInput.value = app.settings.uniqueId;
   $.providerInput.value = app.settings.provider;
+  $.relayUrlInput.value = app.settings.relayUrl;
   $.customUrlInput.value = app.settings.customUrl;
   $.authModeInput.value = app.settings.authMode;
   $.credentialInput.value = app.settings.credential;
@@ -242,12 +258,21 @@ function writeSettingsToForm() {
 }
 
 function renderConnectionOptions() {
+  const resolvedProvider = resolveProvider();
+  $.relayUrlField.hidden = app.settings.provider !== "relay" && app.settings.provider !== "auto";
   $.customUrlField.hidden = app.settings.provider !== "custom";
-  $.authModeInput.closest(".field").hidden = app.settings.provider === "demo" || app.settings.provider === "custom";
+  $.authModeInput.closest(".field").hidden =
+    app.settings.provider === "demo" || app.settings.provider === "custom" || resolvedProvider === "relay";
   $.credentialInput.closest(".field").hidden =
-    app.settings.provider === "demo" || app.settings.provider === "custom" || app.settings.authMode === "none";
+    app.settings.provider === "demo" ||
+    app.settings.provider === "custom" ||
+    resolvedProvider === "relay" ||
+    app.settings.authMode === "none";
   $.rememberCredentialInput.closest(".check").hidden =
-    app.settings.provider === "demo" || app.settings.provider === "custom" || app.settings.authMode === "none";
+    app.settings.provider === "demo" ||
+    app.settings.provider === "custom" ||
+    resolvedProvider === "relay" ||
+    app.settings.authMode === "none";
 }
 
 function connect() {
@@ -259,6 +284,7 @@ function connect() {
     return;
   }
 
+  const provider = resolveProvider();
   disconnect("replace", false);
   const url = buildProviderUrl();
   app.startedAt = Date.now();
@@ -270,7 +296,7 @@ function connect() {
   setStatus("connecting", "Connecting");
   setButtons(true);
   note(`@${app.settings.uniqueId} へ接続中です。`);
-  logDiag("WS_CONNECTING", `provider=${app.settings.provider} creator=@${app.settings.uniqueId || "custom"}`);
+  logDiag("WS_CONNECTING", `provider=${provider} creator=@${app.settings.uniqueId || "custom"}`);
 
   try {
     const socket = new WebSocket(url);
@@ -335,7 +361,7 @@ function disconnect(reason = "manual", update = true) {
 
 function scheduleReconnect() {
   if (!navigator.onLine) return;
-  if (!["euler", "custom"].includes(app.settings.provider)) return;
+  if (!["relay", "euler", "custom"].includes(resolveProvider())) return;
   app.reconnectAttempts += 1;
   if (app.reconnectAttempts > 5) {
     logDiag("RECONNECT_GIVE_UP", "再接続を5回で停止しました。");
@@ -348,15 +374,27 @@ function scheduleReconnect() {
 }
 
 function validateConnectionSettings() {
-  if (app.settings.provider === "euler") {
+  const provider = resolveProvider();
+  if (provider === "relay" || provider === "euler") {
     if (!app.settings.uniqueId) {
       return { ok: false, code: "INPUT_INVALID_ROOM", message: "TikTok IDを入力してください。" };
     }
+  }
+  if (provider === "relay") {
+    if (!getRelayUrlTemplate()) {
+      return {
+        ok: false,
+        code: "RELAY_URL_REQUIRED",
+        message: "Signal Relay URLを設定してください。未デプロイ時はProviderをEuler directに切り替えて検証できます。",
+      };
+    }
+  }
+  if (provider === "euler") {
     if (app.settings.authMode !== "none" && !app.settings.credential) {
       return { ok: false, code: "AUTH_VALUE_REQUIRED", message: "選択した認証方式には認証値が必要です。" };
     }
   }
-  if (app.settings.provider === "custom") {
+  if (provider === "custom") {
     if (!/^wss:\/\//i.test(app.settings.customUrl)) {
       return { ok: false, code: "MIXED_CONTENT_BLOCKED", message: "Custom URLは wss:// で始めてください。" };
     }
@@ -365,8 +403,12 @@ function validateConnectionSettings() {
 }
 
 function buildProviderUrl() {
-  if (app.settings.provider === "custom") {
+  const provider = resolveProvider();
+  if (provider === "custom") {
     return app.settings.customUrl.replaceAll("{uniqueId}", encodeURIComponent(app.settings.uniqueId));
+  }
+  if (provider === "relay") {
+    return buildRelayUrl();
   }
   const params = new URLSearchParams({ uniqueId: app.settings.uniqueId });
   if (app.settings.authMode === "apiKey") params.set("apiKey", app.settings.credential);
@@ -374,22 +416,65 @@ function buildProviderUrl() {
   return `wss://ws.eulerstream.com?${params.toString()}`;
 }
 
+function resolveProvider() {
+  if (app.settings.provider !== "auto") return app.settings.provider;
+  return getRelayUrlTemplate() ? "relay" : "euler";
+}
+
+function getRelayUrlTemplate() {
+  return (app.settings.relayUrl || DEFAULT_RELAY_URL).trim();
+}
+
+function buildRelayUrl() {
+  const uniqueId = encodeURIComponent(app.settings.uniqueId);
+  let url = normalizeRelayUrl(getRelayUrlTemplate());
+  if (url.includes("{uniqueId}")) return url.replaceAll("{uniqueId}", uniqueId);
+  if (url.includes("{id}")) return url.replaceAll("{id}", uniqueId);
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}uniqueId=${uniqueId}`;
+}
+
+function normalizeRelayUrl(value) {
+  const trimmed = value.trim();
+  if (/^https:\/\//i.test(trimmed)) return trimmed.replace(/^https:/i, "wss:");
+  if (/^http:\/\//i.test(trimmed)) return trimmed.replace(/^http:/i, "ws:");
+  return trimmed;
+}
+
 function handleRawMessage(rawData) {
-  app.metrics.raw += 1;
   let parsed;
   try {
     parsed = JSON.parse(rawData);
   } catch {
+    app.metrics.raw += 1;
     logDiag("PAYLOAD_PARSE_FAILED", `JSONではないpayload: ${String(rawData).slice(0, 120)}`);
     scheduleRender();
     return;
   }
 
+  if (isRelayControl(parsed)) {
+    handleRelayControl(parsed);
+    scheduleRender();
+    return;
+  }
+
+  app.metrics.raw += 1;
   app.rawSnapshots.unshift(redact(parsed));
   app.rawSnapshots = app.rawSnapshots.slice(0, 20);
   const packets = flattenPayload(parsed);
   packets.forEach((packet) => ingestPacket(packet, parsed));
   scheduleRender();
+}
+
+function isRelayControl(payload) {
+  return typeof payload?.type === "string" && payload.type.startsWith("relay.");
+}
+
+function handleRelayControl(payload) {
+  const code = String(payload.code || payload.type || "RELAY_STATUS").toUpperCase().replaceAll(".", "_");
+  const message = payload.message || payload.status || JSON.stringify(redact(payload));
+  logDiag(code, message);
+  if (payload.type === "relay.error") note(message);
 }
 
 function flattenPayload(payload) {
@@ -647,7 +732,9 @@ function runDiagnostics() {
   notes.push(`origin=${location.origin}`);
   notes.push(`online=${navigator.onLine}`);
   notes.push(`provider=${app.settings.provider}`);
+  notes.push(`resolvedProvider=${resolveProvider()}`);
   notes.push(`creator=@${app.settings.uniqueId || "(empty)"}`);
+  notes.push(`relayConfigured=${Boolean(getRelayUrlTemplate())}`);
   notes.push(`websocket=${"WebSocket" in window}`);
   notes.push(`serviceWorker=${"serviceWorker" in navigator}`);
   notes.push(`secureContext=${window.isSecureContext}`);
@@ -740,7 +827,7 @@ function logDiag(code, message) {
     at: new Date().toISOString(),
     code,
     message: redactText(message),
-    provider: app.settings.provider,
+    provider: resolveProvider(),
     reconnectAttempts: app.reconnectAttempts,
   });
   app.diagnostics = app.diagnostics.slice(0, MAX_DIAGNOSTICS);
@@ -779,7 +866,7 @@ function renderSession() {
   }
   const elapsed = Math.floor((Date.now() - app.startedAt) / 1000);
   const last = app.lastEventAt ? `${Math.floor((Date.now() - app.lastEventAt) / 1000)}秒前` : "未受信";
-  $.sessionLine.textContent = `経過 ${elapsed}秒 / 最終受信 ${last} / open ${app.timeToOpenMs || "-"}ms / first ${app.timeToFirstMessageMs || "-"}ms / events ${app.events.length}`;
+  $.sessionLine.textContent = `mode ${resolveProvider()} / 経過 ${elapsed}秒 / 最終受信 ${last} / open ${app.timeToOpenMs || "-"}ms / first ${app.timeToFirstMessageMs || "-"}ms / events ${app.events.length}`;
 }
 
 function renderTimeline() {

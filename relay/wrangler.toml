@@ -1,0 +1,14 @@
+name = "tiktok-signal-relay"
+main = "src/worker.js"
+compatibility_date = "2026-05-03"
+
+[vars]
+EULER_WS_BASE = "wss://ws.eulerstream.com"
+
+[[durable_objects.bindings]]
+name = "LIVE_ROOMS"
+class_name = "LiveRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LiveRoom"]

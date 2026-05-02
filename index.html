@@ -36,10 +36,17 @@
               <label class="field">
                 <span>Provider</span>
                 <select id="providerInput">
-                  <option value="euler">Euler WebSocket</option>
+                  <option value="auto">Auto</option>
+                  <option value="relay">Signal Relay</option>
+                  <option value="euler">Euler WebSocket direct</option>
                   <option value="custom">Custom WebSocket</option>
                   <option value="demo">Demo Generator</option>
                 </select>
+              </label>
+
+              <label class="field" id="relayUrlField">
+                <span>Signal Relay URL</span>
+                <input id="relayUrlInput" autocomplete="off" inputmode="url" placeholder="https://tiktok-signal-relay.<account>.workers.dev/ws" />
               </label>
 
               <label class="field" id="customUrlField">
@@ -73,7 +80,7 @@
         </form>
 
         <p class="notice" id="notice">
-          TikTok IDだけで接続を試します。対象がLIVE中ならコメントとギフトが流れます。
+          TikTok IDだけで接続を試します。Relay URLが設定済みなら1本の上流接続を全員へ配ります。
         </p>
       </section>
 
