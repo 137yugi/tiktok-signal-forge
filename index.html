@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#091311" />
+    <title>TikTok Signal Forge</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="mast">
+        <div>
+          <p class="kicker">Browser-only signal lab</p>
+          <h1>TikTok Signal Forge</h1>
+        </div>
+        <span class="badge" id="statusBadge" data-state="idle">Idle</span>
+      </header>
+
+      <section class="panel connect-panel">
+        <form id="connectForm" class="form-grid">
+          <label class="field">
+            <span>TikTok ID / LIVE URL</span>
+            <input id="uniqueIdInput" autocomplete="off" inputmode="text" placeholder="@username または https://www.tiktok.com/@username/live" />
+          </label>
+
+          <label class="field">
+            <span>Provider</span>
+            <select id="providerInput">
+              <option value="euler">Euler WebSocket</option>
+              <option value="custom">Custom WebSocket</option>
+              <option value="demo">Demo Generator</option>
+            </select>
+          </label>
+
+          <label class="field" id="customUrlField">
+            <span>Custom WebSocket URL</span>
+            <input id="customUrlInput" autocomplete="off" inputmode="url" placeholder="wss://example.com/live?uniqueId={uniqueId}" />
+          </label>
+
+          <details class="details" id="authDetails">
+            <summary>認証と保存</summary>
+            <div class="auth-grid">
+              <label class="field">
+                <span>認証方式</span>
+                <select id="authModeInput">
+                  <option value="none">なし</option>
+                  <option value="apiKey">Euler API key</option>
+                  <option value="jwtKey">Euler JWT</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>認証値</span>
+                <input id="credentialInput" autocomplete="off" placeholder="端末内だけで利用" />
+              </label>
+              <label class="check">
+                <input id="rememberCredentialInput" type="checkbox" />
+                <span>認証値をこの端末に保存する</span>
+              </label>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button class="primary" id="connectButton" type="submit">Start</button>
+            <button id="disconnectButton" type="button" disabled>Stop</button>
+            <button id="diagnoseButton" type="button">Diagnose</button>
+            <button id="wakeLockButton" type="button">Wake Lock</button>
+          </div>
+        </form>
+
+        <p class="notice" id="notice">
+          自前サーバーなしで動かすため、TikTok直結ではなくブラウザ対応WebSocket Providerを使います。
+        </p>
+      </section>
+
+      <section class="metrics" aria-live="polite">
+        <article>
+          <span>comments</span>
+          <strong id="commentCount">0</strong>
+        </article>
+        <article>
+          <span>gifts</span>
+          <strong id="giftCount">0</strong>
+        </article>
+        <article>
+          <span>diamonds</span>
+          <strong id="diamondCount">0</strong>
+        </article>
+        <article>
+          <span>raw</span>
+          <strong id="rawCount">0</strong>
+        </article>
+      </section>
+
+      <section class="panel monitor">
+        <div class="monitor-head">
+          <div>
+            <h2>Live Monitor</h2>
+            <p id="sessionLine">未開始</p>
+          </div>
+          <div class="mini-actions">
+            <button id="demoBurstButton" type="button">Demo Burst</button>
+            <button id="exportButton" type="button">Export</button>
+            <button id="clearButton" type="button">Clear</button>
+          </div>
+        </div>
+        <div class="timeline" id="timeline"></div>
+      </section>
+
+      <section class="panel diag-panel">
+        <div class="monitor-head">
+          <div>
+            <h2>Diagnostics</h2>
+            <p>接続理由、payload推定、未対応イベントを残します。</p>
+          </div>
+          <button id="copyDiagnosticsButton" type="button">Copy</button>
+        </div>
+        <pre id="diagnosticsLog"></pre>
+      </section>
+
+      <section class="panel payload-panel">
+        <div class="monitor-head">
+          <div>
+            <h2>Raw Snapshot</h2>
+            <p>最新payloadは認証値をredactして表示します。</p>
+          </div>
+          <button id="copyRawButton" type="button">Copy Raw</button>
+        </div>
+        <pre id="rawLog"></pre>
+      </section>
+
+      <section class="panel payload-panel">
+        <div class="monitor-head">
+          <div>
+            <h2>Payload Injector</h2>
+            <p>実接続なしで解析器だけ検証できます。</p>
+          </div>
+          <button id="injectButton" type="button">Inject JSON</button>
+        </div>
+        <textarea id="payloadInput" spellcheck="false"></textarea>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
