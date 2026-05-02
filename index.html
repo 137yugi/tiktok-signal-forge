@@ -20,28 +20,33 @@
 
       <section class="panel connect-panel">
         <form id="connectForm" class="form-grid">
-          <label class="field">
-            <span>TikTok ID / LIVE URL</span>
-            <input id="uniqueIdInput" autocomplete="off" inputmode="text" placeholder="@username または https://www.tiktok.com/@username/live" />
-          </label>
+          <div class="quick-connect">
+            <label class="field">
+              <span>TikTok ID</span>
+              <input id="uniqueIdInput" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="text" placeholder="@username または LIVE URL" />
+            </label>
+            <button class="primary" id="connectButton" type="submit">このIDで拾う</button>
+          </div>
 
-          <label class="field">
-            <span>Provider</span>
-            <select id="providerInput">
-              <option value="euler">Euler WebSocket</option>
-              <option value="custom">Custom WebSocket</option>
-              <option value="demo">Demo Generator</option>
-            </select>
-          </label>
+          <button id="disconnectButton" type="button" disabled>停止</button>
 
-          <label class="field" id="customUrlField">
-            <span>Custom WebSocket URL</span>
-            <input id="customUrlInput" autocomplete="off" inputmode="url" placeholder="wss://example.com/live?uniqueId={uniqueId}" />
-          </label>
+          <details class="details advanced-details" id="advancedDetails">
+            <summary>接続できない時だけ開く</summary>
+            <div class="advanced-grid">
+              <label class="field">
+                <span>Provider</span>
+                <select id="providerInput">
+                  <option value="euler">Euler WebSocket</option>
+                  <option value="custom">Custom WebSocket</option>
+                  <option value="demo">Demo Generator</option>
+                </select>
+              </label>
 
-          <details class="details" id="authDetails">
-            <summary>認証と保存</summary>
-            <div class="auth-grid">
+              <label class="field" id="customUrlField">
+                <span>Custom WebSocket URL</span>
+                <input id="customUrlInput" autocomplete="off" inputmode="url" placeholder="wss://example.com/live?uniqueId={uniqueId}" />
+              </label>
+
               <label class="field">
                 <span>認証方式</span>
                 <select id="authModeInput">
@@ -58,19 +63,17 @@
                 <input id="rememberCredentialInput" type="checkbox" />
                 <span>認証値をこの端末に保存する</span>
               </label>
+
+              <div class="actions">
+                <button id="diagnoseButton" type="button">Diagnose</button>
+                <button id="wakeLockButton" type="button">Wake Lock</button>
+              </div>
             </div>
           </details>
-
-          <div class="actions">
-            <button class="primary" id="connectButton" type="submit">Start</button>
-            <button id="disconnectButton" type="button" disabled>Stop</button>
-            <button id="diagnoseButton" type="button">Diagnose</button>
-            <button id="wakeLockButton" type="button">Wake Lock</button>
-          </div>
         </form>
 
         <p class="notice" id="notice">
-          自前サーバーなしで動かすため、TikTok直結ではなくブラウザ対応WebSocket Providerを使います。
+          TikTok IDだけで接続を試します。対象がLIVE中ならコメントとギフトが流れます。
         </p>
       </section>
 

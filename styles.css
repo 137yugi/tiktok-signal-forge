@@ -154,6 +154,13 @@ h2 {
   gap: 12px;
 }
 
+.quick-connect {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 190px);
+  gap: 10px;
+  align-items: end;
+}
+
 .field {
   display: grid;
   gap: 7px;
@@ -195,7 +202,7 @@ textarea:focus {
   color: var(--muted);
 }
 
-.auth-grid {
+.advanced-grid {
   display: grid;
   gap: 10px;
   margin-top: 8px;
@@ -342,7 +349,8 @@ pre {
   .mast,
   .monitor-head,
   .actions,
-  .mini-actions {
+  .mini-actions,
+  .quick-connect {
     display: grid;
     grid-template-columns: 1fr;
     align-items: stretch;

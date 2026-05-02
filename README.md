@@ -53,12 +53,16 @@ GitHub側では `Settings -> Pages -> Build and deployment -> Source` を `GitHu
 
 ## 使い方
 
-1. `TikTok ID / LIVE URL` に対象IDを入れる。
-2. `Provider` はまず `Euler WebSocket` のままにする。
-3. 必要なら認証方式と認証値を入れる。
-4. `Start` を押す。
-5. コメント/ギフトが届けば `Live Monitor` に出る。
-6. 失敗時は `Diagnostics` のコードを見る。
+1. `TikTok ID` に対象IDを入れる。
+2. `このIDで拾う` を押す。
+3. コメント/ギフトが届けば `Live Monitor` に出る。
+4. 失敗時だけ `接続できない時だけ開く` を開き、Diagnosticsや認証方式を確認する。
+
+URLから直接起動する場合:
+
+```text
+https://137yugi.github.io/tiktok-signal-forge/?id=<TikTokID>&autostart=1
+```
 
 `Provider=Demo Generator` ならネットワークなしで解析器だけ試せます。
 

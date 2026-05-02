@@ -52,6 +52,7 @@ const app = {
     credential: "",
     rememberCredential: false,
   },
+  pendingAutostart: false,
   metrics: {
     comments: 0,
     gifts: 0,
@@ -70,9 +71,11 @@ document.addEventListener("DOMContentLoaded", () => {
   restore();
   bindEvents();
   seedPayload();
-  runQueryDemoIfNeeded();
+  applyQueryParams();
   renderAll();
+  maybeAutostart();
   registerServiceWorker();
+  $.uniqueIdInput.focus();
 });
 
 function bind() {
@@ -83,7 +86,7 @@ function bind() {
     "providerInput",
     "customUrlField",
     "customUrlInput",
-    "authDetails",
+    "advancedDetails",
     "authModeInput",
     "credentialInput",
     "rememberCredentialInput",
@@ -173,12 +176,28 @@ function bindEvents() {
   });
 }
 
-function runQueryDemoIfNeeded() {
+function applyQueryParams() {
   const params = new URLSearchParams(location.search);
+  const id = params.get("id") || params.get("u") || params.get("uniqueId") || params.get("user");
+  if (id) app.settings.uniqueId = normalizeUniqueId(id);
   if (params.get("demo") === "1") {
     app.settings.provider = "demo";
-    startDemo();
+    app.pendingAutostart = true;
   }
+  if (params.get("autostart") === "1" || params.get("connect") === "1") {
+    app.pendingAutostart = true;
+  }
+}
+
+function maybeAutostart() {
+  if (!app.pendingAutostart) return;
+  requestAnimationFrame(() => {
+    if (app.settings.provider === "demo") {
+      startDemo();
+      return;
+    }
+    connect();
+  });
 }
 
 function restore() {
@@ -224,7 +243,11 @@ function writeSettingsToForm() {
 
 function renderConnectionOptions() {
   $.customUrlField.hidden = app.settings.provider !== "custom";
-  $.authDetails.hidden = app.settings.provider === "demo" || app.settings.provider === "custom";
+  $.authModeInput.closest(".field").hidden = app.settings.provider === "demo" || app.settings.provider === "custom";
+  $.credentialInput.closest(".field").hidden =
+    app.settings.provider === "demo" || app.settings.provider === "custom" || app.settings.authMode === "none";
+  $.rememberCredentialInput.closest(".check").hidden =
+    app.settings.provider === "demo" || app.settings.provider === "custom" || app.settings.authMode === "none";
 }
 
 function connect() {
@@ -246,7 +269,7 @@ function connect() {
   app.reconnectAttempts = 0;
   setStatus("connecting", "Connecting");
   setButtons(true);
-  note("接続を開始しました。コメント/ギフト受信を待っています。");
+  note(`@${app.settings.uniqueId} へ接続中です。`);
   logDiag("WS_CONNECTING", `provider=${app.settings.provider} creator=@${app.settings.uniqueId || "custom"}`);
 
   try {
@@ -256,7 +279,7 @@ function connect() {
       app.timeToOpenMs = Date.now() - app.connectStartedAt;
       setStatus("connected", "Connected");
       logDiag("WS_CONNECTED", `WebSocketを開きました。timeToOpen=${app.timeToOpenMs}ms`);
-      note("接続済み。実イベントが届くと下に表示します。");
+      note(`@${app.settings.uniqueId} を監視中です。コメントかギフトが届くと下に表示します。`);
       scheduleRender();
     });
     socket.addEventListener("message", (message) => {
@@ -267,7 +290,7 @@ function connect() {
     socket.addEventListener("error", () => {
       setStatus("error", "WS Error");
       logDiag("WS_HANDSHAKE_FAILED", "WebSocket error。ブラウザは詳細なHTTP理由を隠す場合があります。");
-      note("WebSocketエラーです。ID、LIVE状態、認証方式、Provider制限を確認してください。");
+      note("接続エラーです。IDがLIVE中か確認してください。必要なら詳細設定を開いて診断してください。");
     });
     socket.addEventListener("close", (event) => {
       const [code, message] = CLOSE_HINTS[event.code] || ["WS_CLOSED_ABNORMAL", event.reason || "切断されました。"];
